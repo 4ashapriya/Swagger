@@ -2,7 +2,7 @@ from django.shortcuts import render
 from rest_framework import generics, status, views
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer, EmailVerificationSerializer
+from .serializers import RegisterSerializer, EmailVerificationSerializer, LoginSerializer
 from .models import User
 from .utils import Utils
 from django.contrib.sites.shortcuts import get_current_site
@@ -22,12 +22,13 @@ class RegisterView(generics.GenericAPIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         user_data = serializer.data
-        user= User.objects.get(email= user_data('email'))
+        print(user_data)
+        user= User.objects.get(email=user_data['email'])
         token= RefreshToken.for_user(user).access_token
         current_site= get_current_site(request).domain
         relativeLink = reverse('email-verify')
 
-        absurl= 'http://'+ current_site + relativeLink+ "?token=" +token
+        absurl= 'http://'+ current_site + relativeLink+ "?token=" +str(token)
         email_body= 'Hii'+ user.username + 'Use the link to verify your email\n'+ absurl
         data = {'email_body': email_body,'to_email': user.email, 'email_subject':'Verify your email'}
 
@@ -57,3 +58,13 @@ class VerifyEmail(views.APIView):
             return Response({'error': 'Activation link expired'}, status=status.HTTP_400_BAD_REQUEST)
         except jwt.exceptions.DecodeError as identifier:
             return Response({'error': 'Invalid token'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LoginAPIView(generics.GenericAPIView):
+    serializer_class = LoginSerializer
+
+    def post(self, request):
+        serializer= self.serializer_class(data= request.data)
+        serializer.is_valid(raise_exception= True)
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
